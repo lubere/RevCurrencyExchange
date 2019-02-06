@@ -1,5 +1,5 @@
 package com.revolut.kataykin.revolutcurrency;
 
 class Titles {
-    static boolean logEnabled = true;
+    static boolean logEnabled = false;
 }
