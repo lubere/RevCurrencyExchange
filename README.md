@@ -2,3 +2,5 @@
 The basis for the Android application of currency converter, you only need to change the server from which you will receive exchange rates.
 
 <img src="/screenshot1.png" width="432" height="500" />
+
+You can download the .APK file from the root to check it on your device.
