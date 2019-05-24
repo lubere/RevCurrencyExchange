@@ -1,6 +1,10 @@
 package com.revolut.kataykin.revolutcurrency.model;
 
+import android.support.annotation.NonNull;
+
 import com.revolut.kataykin.revolutcurrency.R;
+
+import java.math.BigDecimal;
 
 public class Currency {
 
@@ -64,11 +68,11 @@ public class Currency {
 
     private String key;
     private String descr;
-    private Double value;
+    private BigDecimal value;
     private Double rate;
 
 
-    public Currency(String key, Double value) {
+    public Currency(String key, BigDecimal value) {
         this.key = key;
         this.value = value;
     }
@@ -81,11 +85,11 @@ public class Currency {
         this.key = key;
     }
 
-    public Double getValue() {
+    public BigDecimal getValue() {
         return value;
     }
 
-    public void setValue(Double value) {
+    public void setValue(BigDecimal value) {
         this.value = value;
     }
 
@@ -105,6 +109,7 @@ public class Currency {
         this.rate = rate;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return "Currency{" +

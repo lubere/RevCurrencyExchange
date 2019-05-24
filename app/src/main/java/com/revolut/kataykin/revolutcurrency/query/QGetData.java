@@ -1,5 +1,6 @@
 package com.revolut.kataykin.revolutcurrency.query;
 
+import android.content.Context;
 import android.os.AsyncTask;
 
 import com.revolut.kataykin.revolutcurrency.Log;
@@ -7,6 +8,7 @@ import com.revolut.kataykin.revolutcurrency.db.RateDBOp;
 import com.revolut.kataykin.revolutcurrency.model.Currency;
 import com.revolut.kataykin.revolutcurrency.model.Rate;
 import com.revolut.kataykin.revolutcurrency.view.DoEvent;
+import com.revolut.kataykin.revolutcurrency.view.DoEventGetRates;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -16,6 +18,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -23,7 +26,7 @@ import java.util.List;
 
 import javax.net.ssl.HttpsURLConnection;
 
-public class QGetData extends AsyncTask<String, Void, Boolean> {
+public class QGetData extends AsyncTask<String, Void, List<Rate>> {
 
     private static boolean isRun;
 
@@ -31,19 +34,22 @@ public class QGetData extends AsyncTask<String, Void, Boolean> {
         return isRun;
     }
 
-    private DoEvent doIfSuccess;
+    private DoEventGetRates doAfterIfSuccess;
     private DoEvent doIfFault;
     private String sBaseKey;
+    private WeakReference<Context> mWeakContext;
 
-    public QGetData(String sBaseKey, DoEvent doAfterIfSuccess, DoEvent doIfFault) {
+
+    public QGetData(WeakReference<Context> reference, String sBaseKey, DoEventGetRates doAfterIfSuccess, DoEvent doIfFault) {
         this.sBaseKey = sBaseKey != null ? sBaseKey.trim() : null;
-        this.doIfSuccess = doAfterIfSuccess;
+        this.doAfterIfSuccess = doAfterIfSuccess;
         this.doIfFault = doIfFault;
+        this.mWeakContext = reference;
     }
 
-    public Boolean doInBackground(String... urls) {
+    public List<Rate> doInBackground(String... urls) {
         if (isRun)
-            return false;
+            return null;
         isRun = true;
         try {
 
@@ -55,6 +61,7 @@ public class QGetData extends AsyncTask<String, Void, Boolean> {
                 lKeyBase.add(sBaseKey);
             }
 
+            List<Rate> lResult = new ArrayList<>();
             for (String keyFrom : lKeyBase) {
 
                 InputStream is = null;
@@ -88,7 +95,6 @@ public class QGetData extends AsyncTask<String, Void, Boolean> {
                     if (jArray.length() == 0)
                         return null;
 
-                    List<Rate> lResult = new ArrayList<>();
                     for (int i = 0; i < jArray.length(); i++) {
                         JSONObject joDataMain = jArray.getJSONObject(i);
 
@@ -113,8 +119,8 @@ public class QGetData extends AsyncTask<String, Void, Boolean> {
                         }
                     }
 
-                    RateDBOp rateDBOp = new RateDBOp(null);
-                    rateDBOp.update(lResult);
+//                    RateDBOp rateDBOp = new RateDBOp(null);
+//                    rateDBOp.update(lResult);
 
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -130,7 +136,13 @@ public class QGetData extends AsyncTask<String, Void, Boolean> {
                     }
                 }
             }
-            return true;
+
+            if (mWeakContext != null) {
+                RateDBOp rateDBOp = new RateDBOp();
+                rateDBOp.update(mWeakContext.get(), lResult);
+            }
+
+            return lResult;
         } finally {
             isRun = false;
         }
@@ -143,12 +155,11 @@ public class QGetData extends AsyncTask<String, Void, Boolean> {
     public void onCancelled() {
     }
 
-    public void onPostExecute(Boolean isOk) {
-        if (isOk != null && isOk && doIfSuccess != null)
-            doIfSuccess.run();
-        if (isOk == null || !isOk)
-            if (doIfFault != null)
-                doIfFault.run();
+    public void onPostExecute(List<Rate> lRates) {
+        if (lRates != null && lRates.size() > 0 && doAfterIfSuccess != null)
+            doAfterIfSuccess.run(lRates);
+        else if (doIfFault != null)
+            doIfFault.run();
     }
 
     private void l(String log) {

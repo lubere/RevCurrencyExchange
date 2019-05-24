@@ -1,5 +1,7 @@
 package com.revolut.kataykin.revolutcurrency.model;
 
+import android.support.annotation.NonNull;
+
 public class Rate {
     private String keyFrom;
     private String keyTo;
@@ -35,6 +37,7 @@ public class Rate {
         this.rate = rate;
     }
 
+    @NonNull
     @Override
     public String toString() {
         return "Rate{" +

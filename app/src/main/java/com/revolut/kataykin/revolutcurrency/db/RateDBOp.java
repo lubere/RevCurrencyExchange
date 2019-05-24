@@ -9,7 +9,7 @@ import com.revolut.kataykin.revolutcurrency.model.Rate;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RateDBOp {
+public class RateDBOp extends DBOp {
 
     private final String TABLE_NAME = "Rate";
     private final String ID = "id";
@@ -17,8 +17,8 @@ public class RateDBOp {
     private final String KEY_TO = "key_to";
     private final String RATE = "rate";
 
-    public RateDBOp(Context context) {
-        DBOp.open(context);
+    public RateDBOp() {
+        super();
     }
 
     String getCreateTableScript() {
@@ -30,34 +30,33 @@ public class RateDBOp {
     private final String[] columns = new String[]{KEY_FROM, KEY_TO, RATE};
 
 
-    public List<Rate> getAll() {
-        Cursor cursor = DBOp.db.query(TABLE_NAME, columns, null, null, null, null, null);
-        if (cursor == null)
-            return null;
+    public List<Rate> getAll(Context context) {
+        super.open(context);
+        Cursor cursor = db.query(TABLE_NAME, columns, null, null, null, null, null);
         List<Rate> lObj = getList(cursor);
-        cursor.close();
+        super.close();
         return lObj;
     }
 
 
-    public List<Rate> getByKeyBase(String keyFrom) {
-        Cursor cursor = DBOp.db.query(TABLE_NAME, columns, KEY_FROM + "='" + keyFrom + "'", null, null, null, null);
-        if (cursor == null)
-            return null;
+    public List<Rate> getByKeyBase(Context context, String keyFrom) {
+        super.open(context);
+        Cursor cursor = db.query(TABLE_NAME, columns, KEY_FROM + "='" + keyFrom + "'", null, null, null, null);
         List<Rate> lObj = getList(cursor);
-        cursor.close();
+        super.close();
         return lObj;
     }
 
-    private boolean existByKey(String keyFrom, String keyTo) {
+    private boolean existByKey(Context context, String keyFrom, String keyTo) {
         if (keyFrom == null || keyTo == null)
             return false;
-        Cursor cursor = DBOp.db.query(TABLE_NAME, columns,
+        super.open(context);
+        Cursor cursor = db.query(TABLE_NAME, columns,
                 KEY_FROM + "='" + keyFrom + "' AND " + KEY_TO + "='" + keyTo + "'", null, null, null, null);
-        if (cursor == null)
-            return false;
-        int res = cursor.getCount();
-        cursor.close();
+        int res = cursor != null ? cursor.getCount() : 0;
+        if (cursor != null)
+            cursor.close();
+        super.close();
         return res > 0;
     }
 
@@ -73,6 +72,7 @@ public class RateDBOp {
             if (obj != null)
                 lObj.add(obj);
         }
+        cursor.close();
         return lObj;
     }
 
@@ -92,38 +92,42 @@ public class RateDBOp {
         return null;
     }
 
-    public void update(List<Rate> lRate) {
-        if (lRate != null)
+    public void update(Context context, List<Rate> lRate) {
+        if (context == null || lRate != null)
             for (Rate rate : lRate) {
-                update(rate.getKeyFrom(), rate.getKeyTo(), rate.getRate());
+                update(context, rate.getKeyFrom(), rate.getKeyTo(), rate.getRate());
             }
     }
 
-    private void update(String keyFrom, String keyTo, double rate) {
-        if (existByKey(keyFrom, keyTo)) {
-            edit(keyFrom, keyTo, rate);
+    private void update(Context context, String keyFrom, String keyTo, double rate) {
+        if (existByKey(context, keyFrom, keyTo)) {
+            edit(context, keyFrom, keyTo, rate);
         } else {
-            add(keyFrom, keyTo, rate);
+            add(context, keyFrom, keyTo, rate);
         }
     }
 
 
-    private void add(String keyFrom, String keyTo, double rate) {
+    private void add(Context context, String keyFrom, String keyTo, double rate) {
         if (keyFrom == null || keyTo == null)
             return;
         ContentValues cv = new ContentValues();
         cv.put(KEY_FROM, keyFrom);
         cv.put(KEY_TO, keyTo);
         cv.put(RATE, rate);
-        DBOp.db.insert(TABLE_NAME, null, cv);
+        super.open(context);
+        db.insert(TABLE_NAME, null, cv);
+        super.close();
     }
 
-    private void edit(String keyFrom, String keyTo, double rate) {
+    private void edit(Context context, String keyFrom, String keyTo, double rate) {
         if (keyFrom == null || keyTo == null)
             return;
         String filter = KEY_FROM + "='" + keyFrom + "' AND " + KEY_TO + "='" + keyTo + "'";
         ContentValues cv = new ContentValues();
         cv.put(RATE, rate);
-        DBOp.db.update(TABLE_NAME, cv, filter, null);
+        super.open(context);
+        db.update(TABLE_NAME, cv, filter, null);
+        super.close();
     }
 }

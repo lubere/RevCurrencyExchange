@@ -1,5 +1,6 @@
 package com.revolut.kataykin.revolutcurrency;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
@@ -8,6 +9,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -34,15 +36,17 @@ import com.revolut.kataykin.revolutcurrency.db.RateDBOp;
 import com.revolut.kataykin.revolutcurrency.model.Currency;
 import com.revolut.kataykin.revolutcurrency.model.Rate;
 import com.revolut.kataykin.revolutcurrency.op.CurrencyOp;
+import com.revolut.kataykin.revolutcurrency.op.HandlerOp;
 import com.revolut.kataykin.revolutcurrency.query.QGetData;
 import com.revolut.kataykin.revolutcurrency.view.DoEvent;
+import com.revolut.kataykin.revolutcurrency.view.DoEventGetRates;
 
+import java.lang.ref.WeakReference;
+import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -50,7 +54,7 @@ public class AMain extends AppCompatActivity {
 
     private RecyclerView rvMain;
     private boolean[] active = {false};
-    private DecimalFormat df;
+    //    private DecimalFormat df;
     private LinearLayout llMask;
     private ImageView ivProgressRotate;
 
@@ -80,7 +84,9 @@ public class AMain extends AppCompatActivity {
         ivProgressRotate = findViewById(R.id.am_iv_progress_rotate);
 
         List<Currency> lCur = new ArrayList<>();
-        lCur.add(new Currency(Currency.Info.USD.getKey(), 1.0));
+        lCur.add(new Currency(Currency.Info.USD.getKey(), BigDecimal.ONE));
+//        lCur.add(new Currency(Currency.Info.EUR.getKey(), BigDecimal.ONE));
+//        lCur.add(new Currency(Currency.Info.RUB.getKey(), BigDecimal.ONE));
 
         rvMain.setHasFixedSize(true);
         LinearLayoutManager llm = new LinearLayoutManager(this);
@@ -112,10 +118,10 @@ public class AMain extends AppCompatActivity {
                                 rvMain.setAlpha(interpolatedTime);
                             }
                         };
-                        a.setDuration(400);
+                        a.setDuration(400L);
                         rvMain.startAnimation(a);
                     }
-                }, 1000);
+                }, 1000L);
             }
         });
     }
@@ -126,10 +132,10 @@ public class AMain extends AppCompatActivity {
     public class MyAdapter extends RecyclerView.Adapter<MyAdapter.MyViewHolder> {
         List<Currency> lCur;
 
-        public class MyViewHolder extends RecyclerView.ViewHolder {
+        class MyViewHolder extends RecyclerView.ViewHolder {
             private TextView tvTitle;
             private EditText etValue;
-            private TextView tvDescr;
+            //            private TextView tvDescr;
             private ImageView ivIcon;
             private boolean enableTextListener;
 
@@ -137,7 +143,7 @@ public class AMain extends AppCompatActivity {
                 super(v);
                 tvTitle = v.findViewById(R.id.vc_tv_title);
                 etValue = v.findViewById(R.id.vc_et_value);
-                tvDescr = v.findViewById(R.id.vc_tv_descr);
+//                tvDescr = v.findViewById(R.id.vc_tv_descr);
                 ivIcon = v.findViewById(R.id.vc_iv_icon);
 
                 Drawable drawable = etValue.getBackground();
@@ -189,21 +195,22 @@ public class AMain extends AppCompatActivity {
                         Currency c = getCurrencyOp().getByKey(tvTitle.getText().toString(), lCur);
                         if (c == null)
                             return;
-                        double v = 0.0;
+                        BigDecimal v = new BigDecimal(0.0);
                         String sVal = etValue.getText() != null ? etValue.getText().toString().trim() : null;
                         if (sVal != null && sVal.length() > 0) {
                             try {
-                                NumberFormat format = NumberFormat.getInstance(Locale.getDefault());
-                                Number number = format.parse(sVal);
-                                v = number.doubleValue();
+//                                NumberFormat format = NumberFormat.getInstance(Locale.getDefault());
+//                                Number number = format.parse(sVal);
+                                v = new BigDecimal(sVal);
                             } catch (Exception e) {
                                 e.printStackTrace();
                                 setValue(v);
                             }
                         }
                         c.setValue(v);
-                        if (v < 0) {
-                            setValue(Math.abs(v));
+                        if (v.compareTo(BigDecimal.ZERO) < 0) {
+//                        if (v < 0) {
+                            setValue(v.abs());
                             etValue.setSelection(etValue.getText().length());
                         }
                         reloadValues();
@@ -211,9 +218,9 @@ public class AMain extends AppCompatActivity {
                 });
             }
 
-            public void setValue(Double val) {
+            void setValue(BigDecimal val) {
                 enableTextListener = false;
-                df = df != null ? df : new DecimalFormat("0.#########");
+                DecimalFormat df = getTitles().getDecimalFormat();
                 etValue.setText(val != null ? df.format(val) : "-");
                 enableTextListener = true;
             }
@@ -235,6 +242,10 @@ public class AMain extends AppCompatActivity {
             String getKey() {
                 return tvTitle != null && tvTitle.getText() != null ? tvTitle.getText().toString().trim() : null;
             }
+
+            String getText() {
+                return etValue.getText().toString();
+            }
         }
 
         private View getView(MyViewHolder panel) {
@@ -253,8 +264,9 @@ public class AMain extends AppCompatActivity {
             this.lCur = lCur;
         }
 
+        @NonNull
         @Override
-        public MyAdapter.MyViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        public MyAdapter.MyViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View v = LayoutInflater.from(parent.getContext())
                     .inflate(R.layout.v_currency, parent, false);
             v.setOnClickListener(new View.OnClickListener() {
@@ -278,13 +290,13 @@ public class AMain extends AppCompatActivity {
         }
 
         @Override
-        public void onBindViewHolder(MyViewHolder holder, int position) {
+        public void onBindViewHolder(@NonNull MyViewHolder holder, int position) {
             Currency cur = lCur.get(position);
             holder.tvTitle.setText(cur.getKey());
             holder.setValue(cur.getValue());
             Currency.Info ci = getCurrencyOp().getInfoByKey(cur.getKey());
             holder.ivIcon.setImageResource(ci != null ? ci.getFlagImage() : 0);
-            holder.tvDescr.setText(ci != null ? getResources().getString(ci.getTitleId()) : null);
+//            holder.tvDescr.setText(ci != null ? getResources().getString(ci.getTitleId()) : null);
             holder.setTextFocusable(position == 0);
         }
 
@@ -313,7 +325,17 @@ public class AMain extends AppCompatActivity {
     private void reloadFromUrl(final String baseKey, final DoEvent doAfter) {
         if (QGetData.isRun())
             return;
-        QGetData qGetData = new QGetData(baseKey, doAfter, doAfter);
+        QGetData qGetData = new QGetData(new WeakReference<Context>(this), baseKey, new DoEventGetRates() {
+            @Override
+            public void run(List<Rate> rates) {
+                if (!active[0])
+                    return;
+//                RateDBOp rateDBOp = new RateDBOp();
+//                rateDBOp.update(AMain.this, rates);
+                if (doAfter != null)
+                    doAfter.run();
+            }
+        }, doAfter);
         qGetData.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, "");
     }
 
@@ -328,11 +350,41 @@ public class AMain extends AppCompatActivity {
         if (lCur == null || lCur.size() == 0)
             return;
         cBase = cBase == null ? lCur.get(0) : cBase;
-        cBase.setValue(Math.abs(cBase.getValue() == null ? 1.0 : cBase.getValue()));
+        cBase.setValue(cBase.getValue() == null ? new BigDecimal(1.0) : cBase.getValue().abs());
+
+        List<Currency> lCurNew = reloadCurVal(cBase, lCur);
+
+        // REFRESH IN GRID
+        for (int i = 0; i < rvMain.getChildCount(); i++) {
+            View v = rvMain.getChildAt(i);
+            if (v == null)
+                continue;
+            MyAdapter.MyViewHolder panel = (MyAdapter.MyViewHolder) rvMain.getChildViewHolder(v);
+
+            // FIND CURRENCY
+            Currency c = getCurrencyOp().getByKey(panel.tvTitle.getText().toString(), lCur);
+            if (c != null && c != cBase) {
+                panel.setValue(c.getValue());
+            }
+        }
+
+        if (lCurNew != null && lCurNew.size() > 0) {
+            adapter.lCur.addAll(lCurNew);
+            adapter.notifyItemRangeInserted(adapter.lCur.size(), lCurNew.size());
+        }
+
+        reloadFromUrl(cBase.getKey(), null);
+    }
+
+    /**
+     * @return List of currencies that not contain in <code>lCur</code>
+     */
+    public List<Currency> reloadCurVal(Currency cBase, List<Currency> lCur) {
 
         // GET RATES FROM DB
-        List<Rate> lRates = getRateDBOp().getByKeyBase(cBase.getKey());
+        List<Rate> lRates = getRateDBOp().getByKeyBase(this, cBase.getKey());
 
+        // CLEAR VALUES IN CURRENCIES
         for (Currency c : lCur) {
             if (c != cBase) {
                 c.setRate(null);
@@ -349,33 +401,14 @@ public class AMain extends AppCompatActivity {
                 Currency c = getCurrencyOp().getByKey(r.getKeyTo(), lCur);
                 if (c == null) {
                     lCurNew = lCurNew != null ? lCurNew : new ArrayList<Currency>();
-                    c = new Currency(r.getKeyTo(), r.getRate());
+                    c = new Currency(r.getKeyTo(), new BigDecimal(r.getRate()));
                     lCurNew.add(c);
                 }
                 c.setRate(r.getRate());
-                c.setValue(r.getRate() * cBase.getValue());
+                BigDecimal bd1 = new BigDecimal(r.getRate());
+                c.setValue(bd1.multiply(cBase.getValue()));
             }
-
-
-        // REFRESH IN GRID
-        for (int i = 0; i < rvMain.getChildCount(); i++) {
-            View v = rvMain.getChildAt(i);
-            if (v == null)
-                continue;
-            MyAdapter.MyViewHolder panel = (MyAdapter.MyViewHolder) rvMain.getChildViewHolder(v);
-
-            // FIND CURRENCY
-            Currency c = getCurrencyOp().getByKey(panel.tvTitle.getText().toString(), lCur);
-            if (c != null && c != cBase)
-                panel.setValue(c.getValue());
-        }
-
-        if (lCurNew != null && lCurNew.size() > 0) {
-            adapter.lCur.addAll(lCurNew);
-            adapter.notifyItemRangeInserted(adapter.lCur.size(), lCurNew.size());
-        }
-
-        reloadFromUrl(cBase.getKey(), null);
+        return lCurNew;
     }
 
 //    private void refreshTextFocusable(int posInFocus) {
@@ -402,18 +435,19 @@ public class AMain extends AppCompatActivity {
      * TIMER
      */
     private Timer timer;
+    private HandlerOp.MyHandler taskReload;
 
     private void runTimer() {
         if (timer != null)
             return;
 
-        final Handler task = new Handler() {
+        taskReload = new HandlerOp.MyHandler(new DoEvent() {
             @Override
-            public void handleMessage(Message msg) {
+            public void run() {
                 if (active[0])
                     reloadValues();
             }
-        };
+        });
 
         timer = new Timer();
         timer.schedule(new TimerTask() {
@@ -422,13 +456,13 @@ public class AMain extends AppCompatActivity {
                 if (!active[0])
                     return;
                 try {
-                    Message msg = task.obtainMessage();
-                    task.sendMessage(msg);
+                    Message msg = taskReload.obtainMessage();
+                    taskReload.sendMessage(msg);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
-        }, 1000, 1000);
+        }, 1000L, 1000L);
     }
 
     private void stopTimer() {
@@ -436,6 +470,7 @@ public class AMain extends AppCompatActivity {
             timer.cancel();
         }
         timer = null;
+        taskReload = null;
     }
 
     @Override
@@ -470,7 +505,7 @@ public class AMain extends AppCompatActivity {
     }
 
     private RateDBOp getRateDBOp() {
-        rateDBOp = rateDBOp != null ? rateDBOp : new RateDBOp(this);
+        rateDBOp = rateDBOp != null ? rateDBOp : new RateDBOp();
         return rateDBOp;
     }
 
@@ -492,6 +527,13 @@ public class AMain extends AppCompatActivity {
             ivProgressRotate.clearAnimation();
             llMask.setVisibility(View.GONE);
         }
+    }
+
+    private Titles titles;
+
+    private Titles getTitles() {
+        titles = titles != null ? titles : new Titles();
+        return titles;
     }
 
     private void l(String log) {

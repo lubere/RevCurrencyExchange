@@ -12,7 +12,7 @@ public class DBOpen extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase sqLiteDatabase) {
-        sqLiteDatabase.execSQL(new RateDBOp(null).getCreateTableScript());
+        sqLiteDatabase.execSQL(new RateDBOp().getCreateTableScript());
     }
 
     @Override
